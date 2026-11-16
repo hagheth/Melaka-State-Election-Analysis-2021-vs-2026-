@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Melaka PRN SE-15 vs SE-16 Swing Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; }
+
+  #header {
+    padding: 16px 24px;
+    background: #16213e;
+    border-bottom: 2px solid #0f3460;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  #header h1 { font-size: 18px; color: #e94560; }
+  #header p  { font-size: 12px; color: #aaa; margin-top: 2px; }
+
+  #controls {
+    padding: 10px 24px;
+    background: #16213e;
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  #controls label { font-size: 12px; color: #aaa; }
+  #controls select, #controls button {
+    padding: 6px 12px; border-radius: 6px; border: 1px solid #0f3460;
+    background: #0f3460; color: #eee; font-size: 13px; cursor: pointer;
+  }
+  #controls button:hover { background: #e94560; }
+
+  #main { display: flex; height: calc(100vh - 110px); }
+  #map  { flex: 1; }
+
+  #sidebar {
+    width: 300px; background: #16213e;
+    border-left: 2px solid #0f3460;
+    overflow-y: auto; padding: 16px;
+  }
+  #sidebar h2 { font-size: 14px; color: #e94560; margin-bottom: 12px; }
+  #seat-info { font-size: 13px; line-height: 1.8; }
+  #seat-info .label { color: #aaa; font-size: 11px; text-transform: uppercase; }
+  #seat-info .value { color: #fff; font-weight: 600; }
+  #seat-info .flipped { color: #ff6b6b; font-weight: 700; }
+  .bar-wrap { margin: 6px 0; }
+  .bar-label { font-size: 11px; color: #aaa; margin-bottom: 2px; }
+  .bar-track { background: #0f3460; border-radius: 4px; height: 14px; overflow: hidden; }
+  .bar-fill   { height: 100%; border-radius: 4px; transition: width .4s; }
+
+  #legend {
+    padding: 12px 24px; background: #16213e;
+    border-top: 1px solid #0f3460;
+    display: flex; gap: 20px; align-items: center; font-size: 12px;
+  }
+  .leg-item { display: flex; align-items: center; gap: 6px; }
+  .leg-box  { width: 16px; height: 16px; border-radius: 3px; }
+
+  .tooltip-box {
+    background: #16213e; border: 1px solid #0f3460;
+    padding: 8px 12px; border-radius: 6px;
+    font-size: 12px; line-height: 1.6; color: #eee;
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>Melaka State Election — SE-15 (2021) vs SE-16 (2026)</h1>
+    <p>Click any DUN to see detailed results. Colour mode selectable below.</p>
+  </div>
+</div>
+
+<div id="controls">
+  <label>Colour by:</label>
+  <select id="colourMode" onchange="updateColours()">
+    <option value="winner2026">2026 Winner (Coalition)</option>
+    <option value="bnSwing">BN Swing %</option>
+    <option value="flipped">Flipped Seats</option>
+  </select>
+  <button onclick="map.fitBounds(geojsonLayer.getBounds())">Reset Zoom</button>
+</div>
+
+<div id="main">
+  <div id="map"></div>
+  <div id="sidebar">
+    <h2>DUN Details</h2>
+    <div id="seat-info">
+      <span style="color:#aaa;font-size:12px;">Click a DUN on the map to see details.</span>
+    </div>
+  </div>
+</div>
+
+<div id="legend" id="legend-bar">
+  <span style="color:#aaa;">Legend:</span>
+  <div class="leg-item"><div class="leg-box" style="background:#2196F3"></div> BN</div>
+  <div class="leg-item"><div class="leg-box" style="background:#F44336"></div> PH</div>
+  <div class="leg-item"><div class="leg-box" style="background:#4CAF50"></div> PN</div>
+  <div class="leg-item"><div class="leg-box" style="background:#FF9800"></div> Flipped</div>
+</div>
+
+<script>
+const COALITION_COLOURS = { BN: '#2196F3', PH: '#F44336', PN: '#4CAF50', '?': '#888' };
+
+const map = L.map('map', { zoomControl: true });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO', maxZoom: 19
+}).addTo(map);
+
+let geojsonLayer;
+let geojsonData;
+
+function getColour(props) {
+  const mode = document.getElementById('colourMode').value;
+  if (mode === 'winner2026') {
+    return COALITION_COLOURS[props.winner_2026] || '#888';
+  }
+  if (mode === 'flipped') {
+    return props.flipped ? '#FF9800' : '#455a64';
+  }
+  if (mode === 'bnSwing') {
+    const s = props.bn_swing || 0;
+    if (s >= 40) return '#0d47a1';
+    if (s >= 30) return '#1565c0';
+    if (s >= 20) return '#1976d2';
+    if (s >= 10) return '#42a5f5';
+    if (s >= 0)  return '#90caf9';
+    return '#ef9a9a';
+  }
+  return '#888';
+}
+
+function style(feature) {
+  return {
+    fillColor: getColour(feature.properties),
+    weight: 1.5, opacity: 1, color: '#fff',
+    fillOpacity: 0.82
+  };
+}
+
+function updateColours() {
+  if (geojsonLayer) geojsonLayer.setStyle(style);
+}
+
+function showSidebar(props) {
+  const flipTag = props.flipped
+    ? `<span class="flipped">⚡ FLIPPED: ${props.winner_2021} → ${props.winner_2026}</span>`
+    : `<span style="color:#81c784">✔ Held by ${props.winner_2026}</span>`;
+
+  const bar = (label, val21, val26, colour) => `
+    <div class="bar-wrap">
+      <div class="bar-label">${label} &nbsp; 2021: <b>${val21}%</b> → 2026: <b>${val26}%</b></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${val26}%;background:${colour}"></div></div>
+    </div>`;
+
+  document.getElementById('seat-info').innerHTML = `
+    <div style="font-size:15px;font-weight:700;color:#e94560;margin-bottom:8px">${props.name}</div>
+    ${flipTag}
+    <br>
+    <div class="label">2026 Winner</div>
+    <div class="value">${props.winner_name_2026} (${props.winner_party_2026})</div>
+    <br>
+    <div class="label">Majority</div>
+    <div class="value">2021: ${(props.majority_2021||0).toLocaleString()} &nbsp;→&nbsp; 2026: ${(props.majority_2026||0).toLocaleString()}</div>
+    <br>
+    <div class="label">Total Votes 2026</div>
+    <div class="value">${(props.total_votes_2026||0).toLocaleString()}</div>
+    <br>
+    <div class="label">Vote Share</div>
+    ${bar('BN', props.pct_BN_2021, props.pct_BN_2026, '#2196F3')}
+    ${bar('PH', props.pct_PH_2021, props.pct_PH_2026, '#F44336')}
+    ${bar('PN', props.pct_PN_2021, props.pct_PN_2026, '#4CAF50')}
+    <br>
+    <div class="label">BN Swing</div>
+    <div class="value" style="color:${props.bn_swing>=0?'#64b5f6':'#ef9a9a'}">${props.bn_swing>=0?'+':''}${props.bn_swing}%</div>
+  `;
+}
+
+fetch('melaka_swing.geojson')
+  .then(r => r.json())
+  .then(data => {
+    geojsonData = data;
+    geojsonLayer = L.geoJSON(data, {
+      style,
+      onEachFeature(feature, layer) {
+        const p = feature.properties;
+        layer.bindTooltip(`<div class="tooltip-box"><b>${p.name}</b><br>2026: <b>${p.winner_2026}</b> | Majority: <b>${(p.majority_2026||0).toLocaleString()}</b><br>BN Swing: <b>${p.bn_swing>=0?'+':''}${p.bn_swing}%</b></div>`, {sticky: true});
+        layer.on('click', () => { showSidebar(p); });
+        layer.on('mouseover', function() { this.setStyle({weight:3, color:'#FFD700', fillOpacity:0.95}); });
+        layer.on('mouseout',  function() { geojsonLayer.resetStyle(this); });
+      }
+    }).addTo(map);
+    map.fitBounds(geojsonLayer.getBounds());
+  })
+  .catch(e => {
+    document.getElementById('seat-info').innerHTML = '<span style="color:#ef9a9a">Error loading GeoJSON: ' + e.message + '</span>';
+  });
+</script>
+</body>
+</html>
