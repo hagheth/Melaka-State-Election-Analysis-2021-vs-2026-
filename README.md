@@ -7,17 +7,33 @@ A data analysis project comparing the 15th and 16th Melaka State Elections (PRN)
 ## Power BI Report — 3 Pages
 
 ### Page 1 · Results Overview
+*Melaka State Election SE-15 (2021) vs SE-16 (2026)*
+
+![Page 1](screenshots/page1_results_overview.png)
+
 - Seat count cards: BN 21 · PH 4 · PN 3
 - Coalition slicer (2026 Winner filter)
 - Clustered bar chart: Seats won by coalition (2021 vs 2026)
 - Table: All 28 DUN results with winner, majority, and majority change
 
+---
+
 ### Page 2 · Vote Swing Analysis
+*Vote Share Shift Between SE-15 (2021) and SE-16 (2026)*
+
+![Page 2](screenshots/page2_swing_analysis.png)
+
 - Diverging bar chart: Coalition vote swing (BN / PH / PN) per DUN
 - Table: Seats that changed hands (3 flipped seats)
 - DUN slicer for seat-level filtering
 
+---
+
 ### Page 3 · Electorate Demographics
+*Registered Voter Profile — SE-15 (2021) vs SE-16 (2026)*
+
+![Page 3](screenshots/page3_demographics.png)
+
 - Cards: Total registered voters 2021 (495,195) and 2026 (687,697)
 - Bar chart: New young voters (18–24) by DUN — 2026 Top 10
 - Stacked bar: Registered voters by ethnicity per DUN — Top 10
@@ -58,6 +74,16 @@ Built on **MySQL** (`prn_melaka` database):
 - `voter_roll_2026` — full Melaka voter roll for SE-16
 
 Three views power the Power BI report directly via MySQL connector.
+
+---
+
+## Recent Updates
+
+- `v_swing` expanded with `winner_name`, `winner_party`, `coalition_logo` (2021 & 2026), and majority as percentage
+- `v_voter_demog` age groups updated to: 18-21 · 22-30 · 31-40 · 41-50 · 51-60 · 61+
+- `v_seat_results` now includes `majority_pct` column
+- Coalition logos standardised to 300×200 PNG and re-uploaded
+- DUN Detail drillthrough page added to Power BI report
 
 ---
 
